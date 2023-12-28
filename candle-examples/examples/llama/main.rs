@@ -21,11 +21,12 @@ use candle_transformers::generation::LogitsProcessor;
 use hf_hub::{api::sync::Api, Repo, RepoType};
 use std::io::Write;
 
+// ここで読み込んでるのが7bのモデルなので、7bじゃないとダメ？
 use candle_transformers::models::llama as model;
 use model::{Llama, LlamaConfig};
 
 const EOS_TOKEN: &str = "</s>";
-const DEFAULT_PROMPT: &str = "My favorite theorem is ";
+const DEFAULT_PROMPT: &str = "私は高名な研究者で、自分の専門分野について精通しています。私は特に、文から研究キーワードを過不足なく抽出することが得意です。例えば、「自然言語処理における逆接の談話関係についてのアノテーション」というという文からは、「自然言語処理」「談話関係」「アノテーション」といったキーワードを抽出することができます。同じように、「高速原子間力顕微鏡を用いた、タンパク質の一分子観察による動態解」という文から研究キーワードを抽出すると、以下のようなキーワードが挙げられます。以下にjson形式で表示します。";
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum)]
 enum Which {
@@ -122,7 +123,7 @@ fn main() -> Result<()> {
         let api = Api::new()?;
         let model_id = args.model_id.unwrap_or_else(|| match args.which {
             Which::V1 => "Narsil/amall-7b".to_string(),
-            Which::V2 => "meta-llama/Llama-2-7b-hf".to_string(),
+            Which::V2 => "elyza/ELYZA-japanese-Llama-2-13b".to_string(),
             Which::Solar10_7B => "upstage/SOLAR-10.7B-v1.0".to_string(),
         });
         println!("loading the model weights from {model_id}");
@@ -135,11 +136,13 @@ fn main() -> Result<()> {
         let config = config.into_config(args.use_flash_attn);
 
         let filenames =
-            candle_examples::hub_load_safetensors(&api, "model.safetensors.index.json")?;
+            candle_examples::hub_load_safetensors(&api, "pytorch_model.bin.index.json")?;
         println!("building the model");
+        // ここでもmodelを使っている
         let cache = model::Cache::new(!args.no_kv_cache, dtype, &config, &device)?;
 
         let vb = unsafe { VarBuilder::from_mmaped_safetensors(&filenames, dtype, &device)? };
+        // これが返り値になってletに入る
         (Llama::load(vb, &cache, &config)?, tokenizer_filename, cache)
     };
     let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;
