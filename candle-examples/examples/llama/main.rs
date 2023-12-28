@@ -97,6 +97,7 @@ struct Args {
     repeat_last_n: usize,
 }
 
+
 fn main() -> Result<()> {
     use tokenizers::Tokenizer;
     use tracing_chrome::ChromeLayerBuilder;
