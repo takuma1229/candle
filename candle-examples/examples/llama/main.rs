@@ -34,6 +34,8 @@ enum Which {
     V2,
     #[value(name = "solar-10.7b")]
     Solar10_7B,
+    #[value(name = "tiny-llama-1.1b-chat")]
+    TinyLlama1_1BChat,
 }
 
 #[derive(Parser, Debug)]
@@ -126,6 +128,7 @@ fn main() -> Result<()> {
             Which::V1 => "Narsil/amall-7b".to_string(),
             Which::V2 => "elyza/ELYZA-japanese-Llama-2-13b".to_string(),
             Which::Solar10_7B => "upstage/SOLAR-10.7B-v1.0".to_string(),
+            Which::TinyLlama1_1BChat => "TinyLlama/TinyLlama-1.1B-Chat-v1.0".to_string(),
         });
         println!("loading the model weights from {model_id}");
         let revision = args.revision.unwrap_or("main".to_string());
