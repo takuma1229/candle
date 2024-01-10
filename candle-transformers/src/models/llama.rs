@@ -69,12 +69,12 @@ impl Config {
 
     pub fn config_7b_v2(use_flash_attn: bool) -> Self {
         Self {
-            hidden_size: 4096,
-            intermediate_size: 11008,
+            hidden_size: 5120,
+            intermediate_size: 13824,
             vocab_size: 32000,
-            num_hidden_layers: 32,
-            num_attention_heads: 32,
-            num_key_value_heads: 32,
+            num_hidden_layers: 40,
+            num_attention_heads: 40,
+            num_key_value_heads: 40,
             use_flash_attn,
             rms_norm_eps: 1e-5,
             rope_theta: 10_000.0,
