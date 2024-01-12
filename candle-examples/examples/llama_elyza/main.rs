@@ -18,7 +18,6 @@ use clap::{Parser, ValueEnum};
 use candle::{DType, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::generation::LogitsProcessor;
-use hf_hub::{api::sync::Api, Repo, RepoType};
 use std::io::Write;
 use std::env;
 use std::path::PathBuf;
@@ -29,20 +28,7 @@ use model::{Llama, LlamaConfig};
 
 const EOS_TOKEN: &str = "</s>";
 
-const B_INST: &str = "[INST]";
-const E_INST: &str = "[/INST]";
-const B_SYS: &str = "<<SYS>>\n";
-const E_SYS: &str = "\n<</SYS>>\n\n";
-const DEFAULT_SYSTEM_PROMPT: &str = "あなたは誠実で優秀な日本人のアシスタントです。";
-const TEXT: &str = "仕事の熱意を取り戻すためのアイデアを5つ挙げてください。";
-
-// const DEFAULT_PROMPT: &str = format!(
-//     "{}{}{}{}{}{}", B_INST, B_SYS, DEFAULT_SYSTEM_PROMPT, E_SYS, TEXT, E_INST
-// ).as_str();
-
 const DEFAULT_PROMPT: &str = "[INST]<<SYS>>\nあなたは高名な研究者で、自分の専門分野について精通しています。特にあなたは、文から研究キーワードを過不足なく抽出することが得意です。例えば、「自然言語処理における逆接の談話関係についてのアノテーション」というという文からは、「自然言語処理」「談話関係」「アノテーション」といったキーワードを抽出することができます。\n<</SYS>>\n\n「高速原子間力顕微鏡を用いた、タンパク質の一分子観察による動態解」という文から研究キーワードを抽出して、json形式で出力してください。[/INST]";
-
-// const DEFAULT_PROMPT: &str = "私は高名な研究者で、自分の専門分野について精通しています。私は特に、文から研究キーワードを過不足なく抽出することが得意です。例えば、「自然言語処理における逆接の談話関係についてのアノテーション」というという文からは、「自然言語処理」「談話関係」「アノテーション」といったキーワードを抽出することができます。同じように、「高速原子間力顕微鏡を用いた、タンパク質の一分子観察による動態解」という文から研究キーワードを抽出すると、以下のようなキーワードが挙げられます。以下にjson形式で表示します。";
 
 #[derive(Clone, Debug, Copy, PartialEq, Eq, ValueEnum)]
 enum Which {
@@ -148,33 +134,24 @@ fn main() -> Result<()> {
         None => DType::F16,
     };
     let (llama, tokenizer_filename, cache) = {
-        let api = Api::new()?;
-        let model_id = args.model_id.unwrap_or_else(|| match args.which {
-            Which::V1 => "Narsil/amall-7b".to_string(),
-            Which::V2 => "takuma/elyza-llama2-13b-instruct".to_string(),
-            Which::Solar10_7B => "upstage/SOLAR-10.7B-v1.0".to_string(),
-            Which::TinyLlama1_1BChat => "TinyLlama/TinyLlama-1.1B-Chat-v1.0".to_string(),
-        });
-        println!("loading the model weights from {model_id}");
-        let revision = args.revision.unwrap_or("main".to_string());
-        let api = api.repo(Repo::with_revision(model_id, RepoType::Model, revision));
+        let models_dir: &str = "./candle-examples/examples/llama_elyza/models";
 
-        // let tokenizer_filename = api.get("tokenizer.json")?;
-        let tokenizer_filename = PathBuf::from(r"./candle-examples/examples/llama_elyza/models/tokenizer.json");
+        let tokenizer_filename = PathBuf::from(format!("{}/tokenizer.json", models_dir));
         println!("tokenizer_filename : {}", tokenizer_filename.display());
-        let config_filename = PathBuf::from(r"./candle-examples/examples/llama_elyza/models/config.json");
+        let config_filename = PathBuf::from(format!("{}/config.json", models_dir));
         let config: LlamaConfig = serde_json::from_slice(&std::fs::read(config_filename)?)?;
         let config = config.into_config(args.use_flash_attn);
 
-        let filenames =
-            candle_examples::hub_load_safetensors(&api, "model.safetensors.index.json")?;
+        let filename_1: PathBuf = PathBuf::from(format!("{}/model-00001-of-00003.safetensors", models_dir));
+        let filename_2: PathBuf = PathBuf::from(format!("{}/model-00002-of-00003.safetensors", models_dir));
+        let filename_3: PathBuf = PathBuf::from(format!("{}/model-00003-of-00003.safetensors", models_dir));
+
+        let filenames: Vec<PathBuf> = vec![filename_1, filename_2, filename_3];
+
         println!("building the model");
-        // ここでもmodelを使っている
         let cache = model::Cache::new(!args.no_kv_cache, dtype, &config, &device)?;
 
         let vb = unsafe { VarBuilder::from_mmaped_safetensors(&filenames, dtype, &device)? };
-        // VarBuilder::from_pth(&weights_filename, DTYPE, &device)?
-        // これが返り値になってletに入る
         (Llama::load(vb, &cache, &config)?, tokenizer_filename, cache)
     };
     let tokenizer = Tokenizer::from_file(tokenizer_filename).map_err(E::msg)?;
