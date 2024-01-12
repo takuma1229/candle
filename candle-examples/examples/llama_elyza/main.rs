@@ -20,6 +20,8 @@ use candle_nn::VarBuilder;
 use candle_transformers::generation::LogitsProcessor;
 use hf_hub::{api::sync::Api, Repo, RepoType};
 use std::io::Write;
+use std::env;
+use std::path::PathBuf;
 
 // ここで読み込んでるのが7bのモデルなので、7bじゃないとダメ？
 use candle_transformers::models::llama as model;
@@ -38,7 +40,7 @@ const TEXT: &str = "仕事の熱意を取り戻すためのアイデアを5つ�
 //     "{}{}{}{}{}{}", B_INST, B_SYS, DEFAULT_SYSTEM_PROMPT, E_SYS, TEXT, E_INST
 // ).as_str();
 
-const DEFAULT_PROMPT: &str = "[INST]<<SYS>>\nあなたは誠実で優秀な日本人のアシスタントです。\n<</SYS>>\n\n仕事の熱意を取り戻すためのアイデアを5つ挙げてください。[/INST]";
+const DEFAULT_PROMPT: &str = "[INST]<<SYS>>\nあなたは高名な研究者で、自分の専門分野について精通しています。特にあなたは、文から研究キーワードを過不足なく抽出することが得意です。例えば、「自然言語処理における逆接の談話関係についてのアノテーション」というという文からは、「自然言語処理」「談話関係」「アノテーション」といったキーワードを抽出することができます。\n<</SYS>>\n\n「高速原子間力顕微鏡を用いた、タンパク質の一分子観察による動態解」という文から研究キーワードを抽出して、json形式で出力してください。[/INST]";
 
 // const DEFAULT_PROMPT: &str = "私は高名な研究者で、自分の専門分野について精通しています。私は特に、文から研究キーワードを過不足なく抽出することが得意です。例えば、「自然言語処理における逆接の談話関係についてのアノテーション」というという文からは、「自然言語処理」「談話関係」「アノテーション」といったキーワードを抽出することができます。同じように、「高速原子間力顕微鏡を用いた、タンパク質の一分子観察による動態解」という文から研究キーワードを抽出すると、以下のようなキーワードが挙げられます。以下にjson形式で表示します。";
 
@@ -119,6 +121,15 @@ fn main() -> Result<()> {
     use tracing_chrome::ChromeLayerBuilder;
     use tracing_subscriber::prelude::*;
 
+    match env::current_dir() {
+        Ok(path) => {
+            println!("現在のディレクトリは: {}", path.display());
+        },
+        Err(e) => {
+            println!("エラー: {}", e);
+        }
+    }
+
     let args = Args::parse();
     let _guard = if args.tracing {
         let (chrome_layer, guard) = ChromeLayerBuilder::new().build();
@@ -148,8 +159,10 @@ fn main() -> Result<()> {
         let revision = args.revision.unwrap_or("main".to_string());
         let api = api.repo(Repo::with_revision(model_id, RepoType::Model, revision));
 
-        let tokenizer_filename = api.get("tokenizer.json")?;
-        let config_filename = api.get("config.json")?;
+        // let tokenizer_filename = api.get("tokenizer.json")?;
+        let tokenizer_filename = PathBuf::from(r"./candle-examples/examples/llama_elyza/models/tokenizer.json");
+        println!("tokenizer_filename : {}", tokenizer_filename.display());
+        let config_filename = PathBuf::from(r"./candle-examples/examples/llama_elyza/models/config.json");
         let config: LlamaConfig = serde_json::from_slice(&std::fs::read(config_filename)?)?;
         let config = config.into_config(args.use_flash_attn);
 
@@ -209,6 +222,7 @@ fn main() -> Result<()> {
         // heuristics as it seems to work well enough for this example. See the following for more
         // details:
         // https://github.com/huggingface/tokenizers/issues/1141#issuecomment-1562644141
+        println!("{next_token}");
         if let Some(texts) = tokenizer.id_to_token(next_token) {
             let texts = texts.replace('▁', " ").replace("<0x0A>", "\n");
             print!("{texts}");

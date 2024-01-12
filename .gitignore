@@ -25,6 +25,7 @@ flamegraph.svg
 *.swp
 *.swo
 trace-*.json
+*.safetensors
 
 candle-wasm-examples/*/build
 candle-wasm-examples/*/*.bin
