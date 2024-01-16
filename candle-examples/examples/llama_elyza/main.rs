@@ -25,6 +25,7 @@ use std::path::PathBuf;
 // ここで読み込んでるのが7bのモデルなので、7bじゃないとダメ？
 use candle_transformers::models::llama as model;
 use model::{Llama, LlamaConfig};
+use regex::Regex;
 
 const EOS_TOKEN: &str = "</s>";
 
@@ -212,12 +213,15 @@ fn main() -> Result<()> {
                 undecoded_tokens_vector.push(u8_value);
             }
             if undecoded_tokens_vector.len() >= 3 {
-                println!("start decoding : {:?}", undecoded_tokens_vector);
+                // println!("start decoding : {:?}", undecoded_tokens_vector);
                 let decoded_token = String::from_utf8(undecoded_tokens_vector.clone())?;
-                println!("デコード結果 : {}", decoded_token);
+                // println!("デコード結果 : {}", decoded_token);
                 texts.push_str(&decoded_token);
                 undecoded_tokens_vector = vec![];
             }
+            // デコード前のトークン列を削除
+            let re = Regex::new(r"<0x..>").unwrap();
+            texts = re.replace_all(&texts, "").to_string();
             print!("{texts}");
             std::io::stdout().flush()?;
         }
