@@ -169,6 +169,9 @@ fn main() -> Result<()> {
     let start_gen = std::time::Instant::now();
     let mut index_pos = 0;
     let mut token_generated = 0;
+
+    let mut undecoded_tokens = "".to_string();
+    let mut undecoded_tokens_vector = Vec::new();
     for index in 0..args.sample_len {
         let context_size = if cache.use_kv_cache && index > 0 {
             1
@@ -199,9 +202,22 @@ fn main() -> Result<()> {
         // heuristics as it seems to work well enough for this example. See the following for more
         // details:
         // https://github.com/huggingface/tokenizers/issues/1141#issuecomment-1562644141
-        println!("{next_token}");
+        // println!("{next_token}");
         if let Some(texts) = tokenizer.id_to_token(next_token) {
-            let texts = texts.replace('▁', " ").replace("<0x0A>", "\n");
+            let mut texts = texts.replace('▁', " ").replace("<0x0A>", "\n");
+            if texts.starts_with("<0") {
+                let hex_string = texts[1..5].to_string();
+                let hex_string_trimmed = hex_string.trim_start_matches("0x");
+                let u8_value: u8 = u8::from_str_radix(hex_string_trimmed, 16)?;
+                undecoded_tokens_vector.push(u8_value);
+            }
+            if undecoded_tokens_vector.len() >= 3 {
+                println!("start decoding : {:?}", undecoded_tokens_vector);
+                let decoded_token = String::from_utf8(undecoded_tokens_vector.clone())?;
+                println!("デコード結果 : {}", decoded_token);
+                texts.push_str(&decoded_token);
+                undecoded_tokens_vector = vec![];
+            }
             print!("{texts}");
             std::io::stdout().flush()?;
         }
